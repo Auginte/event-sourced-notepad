@@ -1,5 +1,6 @@
 import sbt._
 import Keys._
+import xerial.sbt.Pack.{pack => sbtPack, _}
 
 object Build extends sbt.Build {
   val buildName = "auginte-event-sourced"
@@ -21,5 +22,5 @@ object Build extends sbt.Build {
       scalaVersion := buildScalaVersion,
       scalacOptions := buildOptions,
       libraryDependencies ++= buildDependencies
-    )
+    ) settings packAutoSettings
 }
