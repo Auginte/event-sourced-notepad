@@ -20,7 +20,7 @@ object Main {
     val host = env("auginte.host", "127.0.0.1")
     val port = Integer.decode(env("auginte.port", "8112"))
 
-    println(s"Starting service: $host:$port")
+    println(s"Starting service: http://$host:$port")
 
     implicit val system = ActorSystem("common-actor")
     implicit val materializer = ActorMaterializer()
