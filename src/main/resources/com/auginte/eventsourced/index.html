@@ -1,0 +1,42 @@
+<html>
+<head>
+    <title>Auginte</title>
+</head>
+<body>
+    <h2>Create project</h2>
+    <form id="createProjectForm">
+        Name: <input id="projectName">
+        <button type="submit" id="createProject">Create project</button>
+    </form>
+    <h2>Projects</h2>
+    <ul id="projects">
+    </ul>
+
+    <script type="text/javascript">
+        function createProject() {
+            var projectNameInput = document.getElementById("projectName");
+            var name = projectNameInput.value;
+
+            var projects = document.getElementById("projects");
+            console.log(projects);
+            var li = document.createElement('li');
+            var link = document.createElement('a');
+            link.href = '/project/' + encodeURIComponent(name);
+            link.target = '_blank';
+            link.innerHTML = name;
+            li.appendChild(link);
+            projects.appendChild(li);
+            projectNameInput.value = "";
+            projectNameInput.focus();
+            return false;
+        };
+
+        document.getElementById("createProjectForm").onsubmit = function(event) {
+            event.preventDefault();
+            return createProject();
+        };
+
+        document.getElementById("createProject").onclick = createProject;
+    </script>
+</body>
+</html>

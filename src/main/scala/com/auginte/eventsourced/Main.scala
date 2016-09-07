@@ -11,6 +11,7 @@ import akka.stream.scaladsl.{Source, _}
 import akka.util.{ByteString, Timeout}
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 object Main {
   def env(param: String, default: String = ""): String = sys.props.getOrElse(param, default)
@@ -32,7 +33,7 @@ object Main {
     val exampleCluster = "test"
     val success = storage.append(exampleCluster, System.nanoTime() + "DATA")
     println(success)
-    storage.readAll(exampleCluster).runForeach(println)
+//    storage.readAll(exampleCluster).runForeach(println)
 
     def date = new java.util.Date().toString
 
@@ -88,6 +89,16 @@ object Main {
           )
 
         )
+
+      case r @ HttpRequest(GET, uri, _, _, _) if uri.path.startsWith(Uri.Path("/project/")) =>
+        val project = uri.path.reverse.head.toString
+
+        HttpResponse(
+          StatusCodes.OK,
+          List(),
+          HttpEntity(ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`), Html.page(project))
+        )
+
       case r @ HttpRequest(GET, Uri.Path("/"), _, _, _) =>
         println(r)
 

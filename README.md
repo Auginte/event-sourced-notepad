@@ -1,8 +1,15 @@
 Auginte event sourced
 =====================
 
-Compile and run
----------------
+Run during development
+----------------------
+
+```
+sbt "~re-start"
+```
+
+Deploy
+------
 
 ```
 sbt pack

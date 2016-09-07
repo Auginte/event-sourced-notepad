@@ -21,6 +21,7 @@ object Build extends sbt.Build {
       organization := "com.auginte",
       scalaVersion := buildScalaVersion,
       scalacOptions := buildOptions,
-      libraryDependencies ++= buildDependencies
+      libraryDependencies ++= buildDependencies,
+      spray.revolver.RevolverPlugin.Revolver.settings
     ) settings packAutoSettings
 }
