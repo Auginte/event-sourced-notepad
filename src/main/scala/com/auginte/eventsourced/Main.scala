@@ -26,6 +26,7 @@ object Main {
     implicit val system = ActorSystem("common-actor")
     implicit val materializer = ActorMaterializer()
     implicit val timeout = Timeout(5.seconds)
+    implicit val executionContext = system.dispatcher
 
     // Storage example
     val storagePath = env("auginte.storage.path", "./data")
@@ -97,6 +98,22 @@ object Main {
           StatusCodes.OK,
           List(),
           HttpEntity(ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`), Html.page(project))
+        )
+
+      case r @ HttpRequest(POST, uri, _, entity, _) if uri.path.startsWith(Uri.Path("/project/")) =>
+        val project = uri.path.reverse.head.toString
+
+        val commands = entity.dataBytes
+           .via(Framing.delimiter(ByteString("\n"), Int.MaxValue))
+           .map(_.utf8String)
+           .map(a => {println(a); a})
+
+        val array = commands.runReduce((a, b) => a + "," + b).map(i => "[" + i + "]").map(ByteString.apply)
+
+        HttpResponse(
+          StatusCodes.OK,
+          List(),
+          HttpEntity(ContentType(MediaTypes.`application/json`), Source.fromFuture(array))
         )
 
       case r @ HttpRequest(GET, Uri.Path("/"), _, _, _) =>

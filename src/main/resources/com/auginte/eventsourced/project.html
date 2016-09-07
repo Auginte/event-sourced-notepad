@@ -4,6 +4,55 @@
 </head>
 <body>
     <h1>{{project}}</h1>
+    <h2>Create project</h2>
+    <form id="addElementForm">
+        Name: <input id="elementName">
+        <button type="submit" id="addElement">Create project</button>
+    </form>
+    <h2>Projects</h2>
+    <ul id="projects">
+    </ul>
+
     <div id="data">Loading greatness...</div>
+
+    <script type="text/javascript">
+        function addElement() {
+            var elementNameInput = document.getElementById("elementName");
+            var name = elementNameInput.value;
+
+            var healhChecked = {
+                event: "HealthChecked",
+            };
+            var elementAdded = {
+                event: "ElementAdded",
+                type: "Text",
+                data: name,
+            };
+
+            var http = new XMLHttpRequest();
+            var url = "/project/{{project}}";
+            var params = JSON.stringify(healhChecked) + "\n" + JSON.stringify(elementAdded) + "\n";
+            http.open("POST", url, true);
+            http.setRequestHeader("Content-type", "application/json");
+
+            http.onreadystatechange = function() {
+                console.log("http.readyState", http.readyState);
+                console.log("http.status", http.status);
+                console.log("http.responseText", http.responseText);
+            };
+            http.send(params);
+
+            elementNameInput.value = "";
+            elementNameInput.focus();
+            return false;
+        };
+
+        document.getElementById("addElementForm").onsubmit = function(event) {
+            event.preventDefault();
+            return addElement();
+        };
+
+        document.getElementById("addElement").onclick = addElement;
+    </script>
 </body>
 </html>
