@@ -26,6 +26,14 @@ object Main {
     implicit val materializer = ActorMaterializer()
     implicit val timeout = Timeout(5.seconds)
 
+    // Storage example
+    val storagePath = env("auginte.storage.path", "./data")
+    val storage = new Storage(storagePath)
+    val exampleCluster = "test"
+    val success = storage.append(exampleCluster, System.nanoTime() + "DATA")
+    println(success)
+    storage.readAll(exampleCluster).runForeach(println)
+
     def date = new java.util.Date().toString
 
     val linearFlow = Source.fromIterator[String](() => new Iterator[String] {
