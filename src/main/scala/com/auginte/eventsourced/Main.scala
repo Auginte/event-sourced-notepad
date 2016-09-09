@@ -1,21 +1,26 @@
 package com.auginte.eventsourced
 
 import akka.NotUsed
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 import akka.http.javadsl.{model => jm}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.stream._
+import akka.stream.actor.ActorPublisher
 import akka.stream.scaladsl.{Source, _}
 import akka.util.{ByteString, Timeout}
 
 import scala.concurrent.duration._
-import scala.util.Random
 
 object Main {
-  // Storage example
+
+  def thread(execution: => Unit): Thread = new Thread(new Runnable {
+    override def run(): Unit = execution
+  })
+
+    // Storage example
   val storagePath = env("auginte.storage.path", "./data")
   val storage = new Storage(storagePath)
 
@@ -33,6 +38,25 @@ object Main {
     implicit val timeout = Timeout(5.seconds)
     implicit val executionContext = system.dispatcher
 
+    val messageActor = system.actorOf(Props[RealTimeMessages])
+    val sendingMessages = thread{
+      println("Starting")
+      Thread.sleep(500)
+      for (i <- 1 to 10) {
+        println("Bla " + i)
+        messageActor ! ("Data" + i)
+        Thread.sleep(500)
+      }
+      println("Finished")
+    }
+    sendingMessages.start()
+
+    val receivingData = thread{
+      RealTimeMessages.source(messageActor).runForeach(data =>
+        println("Received" + data)
+      )
+    }
+    receivingData.start()
 
     def date = new java.util.Date().toString
 
