@@ -3,15 +3,12 @@
     <title>Auginte: {{project}}</title>
 </head>
 <body>
-    <h1>{{project}}</h1>
-    <h2>Create project</h2>
+    <h1>{{project}}: {{uuid}}</h1>
+    <h2>Add element</h2>
     <form id="addElementForm">
         Name: <input id="elementName">
         <button type="submit" id="addElement">Create project</button>
     </form>
-    <h2>Projects</h2>
-    <ul id="projects">
-    </ul>
 
     <div id="data">Loading greatness...</div>
 
@@ -53,6 +50,35 @@
         };
 
         document.getElementById("addElement").onclick = addElement;
+    </script>
+
+    <script type="text/javascript">
+        var source = new EventSource('/stream');
+        var dataElement = document.getElementById("data")
+
+        function appendData(data) {
+            var div = document.createElement("div");
+            div.innerHTML = data
+            dataElement.appendChild(div)
+        }
+
+        source.addEventListener('message', function(e) {
+          appendData(e.data);
+          var parsed = JSON.parse(e.data);
+          console.log(parsed, e);
+        }, false);
+
+        source.addEventListener('open', function(e) {
+          console.log("OPEN", e)
+        }, false);
+
+        source.addEventListener('error', function(e) {
+          if (e.readyState == EventSource.CLOSED) {
+            console.log("CLOSED", e)
+          } else {
+            console.log("ERROR", e)
+          }
+        }, false);
     </script>
 </body>
 </html>

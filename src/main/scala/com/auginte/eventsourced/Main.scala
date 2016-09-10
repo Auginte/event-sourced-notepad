@@ -20,6 +20,8 @@ object Main {
     override def run(): Unit = execution
   })
 
+  def newUuid: String = java.util.UUID.randomUUID.toString
+
     // Storage example
   val storagePath = env("auginte.storage.path", "./data")
   val storage = new Storage(storagePath)
@@ -38,37 +40,30 @@ object Main {
     implicit val timeout = Timeout(5.seconds)
     implicit val executionContext = system.dispatcher
 
-    val messageActor = system.actorOf(Props[RealTimeMessages])
     val sendingMessages = thread{
       println("Starting")
       Thread.sleep(500)
-      for (i <- 1 to 10) {
+      for (i <- 1 to 100) {
         println("Bla " + i)
-        messageActor ! ("Data" + i)
+        val json = s"""{"data":$i}"""
+        RealTimeMessages.publishData(json)
         Thread.sleep(500)
       }
       println("Finished")
     }
     sendingMessages.start()
 
-    val receivingData = thread{
-      RealTimeMessages.source(messageActor).runForeach(data =>
-        println("Received" + data)
-      )
-    }
-    receivingData.start()
-
     def date = new java.util.Date().toString
 
     val linearFlow = Source.fromIterator[String](() => new Iterator[String] {
       private var i: Int = 1
 
-      override def hasNext: Boolean = i < 5000
+      override def hasNext: Boolean = i < 50
 
       override def next(): String = {
         println("INITIAL STARTED : " + i + " | " + date)
 
-        Thread.sleep(2)
+        Thread.sleep(20)
 
         println("INITIAL FINISHED: " + i + " | " + date)
         i = i + 1
@@ -97,9 +92,13 @@ object Main {
 
     val flow: Flow[HttpRequest, HttpResponse, Any] = Flow[HttpRequest].map {
       case r@HttpRequest(GET, Uri.Path("/stream"), _, _, _) =>
-        println("Debug: Stream")
 
-        println(r)
+        def toEventSourcedFormat(data: String): String = {
+          s"""
+             |id: $newUuid
+             |data: $data
+      """.stripMargin + "\n\n"
+        }
 
         HttpResponse(
           StatusCodes.OK,
@@ -107,7 +106,9 @@ object Main {
 
           entity = HttpEntity.CloseDelimited(// <--- Response
             customContentType,
-            linearFlow.map(ByteString.fromString) // <--- Stream
+            RealTimeMessages.source()
+              .map(toEventSourcedFormat)
+              .map(ByteString.fromString) // <--- Stream
               .via(slowUpdate)
           )
 
