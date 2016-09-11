@@ -4,12 +4,13 @@ import xerial.sbt.Pack.{pack => sbtPack, _}
 
 object Build extends sbt.Build {
   val buildName = "auginte-event-sourced"
-  val buildVersion = "0.0.1"
+  val buildVersion = "0.0.2"
   val buildScalaVersion = "2.11.8"
-  val buildOptions = Seq("-unchecked", "-deprecation", "-encoding", "utf8")
+  val buildOptions = Seq("-feature", "-unchecked", "-deprecation", "-encoding", "utf8")
 
   val akkaVersion = "2.4.9"
   val buildDependencies = Seq(
+    "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-http-experimental" % akkaVersion
   )

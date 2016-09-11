@@ -1,6 +1,7 @@
 <html>
 <head>
     <title>Auginte</title>
+    <script type="text/javascript" src="/js/common.js"></script>
 </head>
 <body>
     <h2>Create project</h2>
@@ -20,9 +21,9 @@
             var projects = document.getElementById("projects");
             var li = document.createElement('li');
             var link = document.createElement('a');
-            link.href = '/project/' + encodeURIComponent(name);
+            link.href = '/project/' + urlEncode(name);
             link.target = '_blank';
-            link.innerHTML = name;
+            link.innerHTML = htmlEncode(name);
             li.appendChild(link);
             projects.appendChild(li);
             projectNameInput.value = "";

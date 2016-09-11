@@ -24,6 +24,8 @@ object Main {
 
   def html(data: String) = HttpResponse(StatusCodes.OK, List(), HttpEntity(ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`), data))
 
+  def js(data: String) = HttpResponse(StatusCodes.OK, List(), HttpEntity(ContentType(MediaTypes.`application/javascript`, HttpCharsets.`UTF-8`), data))
+
   val ProjectName = Segment
 
   val StringUUID: PathMatcher1[UUID] =
@@ -67,7 +69,8 @@ object Main {
     case class SessionValidated(project: Project, uuid: UUID) {
       val session: SessionStream = sessionFactory.get(project, uuid) match {
         case Some(s) => s
-        case None => throw new IllegalArgumentException("No session was found by project and uuid. Go to project first")
+        case None =>
+          throw new IllegalArgumentException("No session was found by project and uuid. Go to project first")
       }
     }
 
@@ -92,10 +95,9 @@ object Main {
       def processCommands = GraphDSL.create() { implicit b =>
         import GraphDSL.Implicits._
 
-        val input = b.add(Broadcast[String](3).async)
+        val input = b.add(Broadcast[String](2).async)
         val output = b.add(Flow[(String)])
 
-        input ~> logEvent ~> Sink.ignore
         input ~> storeToDatabase ~> logStorageErrors ~> informOtherClients ~> Sink.ignore
         input ~> output
 
@@ -157,11 +159,14 @@ object Main {
                 streamSessionEvents(sessionData.session)
               }
             }
+        } ~
+        path("js" / "common.js") {
+          complete{
+            js(Html.commonJs)
+          }
         }
 
     val bindingFuture = Http().bindAndHandle(routes, host, port)
   }
-
-  def logEvent: Flow[String, Unit, NotUsed] = Flow.fromFunction(data => println(s"Log: $data"))
 }
 

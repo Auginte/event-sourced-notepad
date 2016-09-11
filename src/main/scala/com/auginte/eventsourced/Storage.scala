@@ -31,5 +31,16 @@ class Storage(private val path: String) {
     }
   }
 
-  private def fileName(cluster: String) = path + "/" + cluster + ".jsonl"
+  private def fileName(project: Project) =  path + "/" + md5Hash(project) + "-" + sanitise(project) + ".jsonl"
+
+  private def sanitise(name: String) = {
+    name.map(_.toString).filter(_.matches("[a-zA-Z0-9-_]")).mkString("")
+  }
+
+  private def md5Hash(s: String) = {
+    val m = java.security.MessageDigest.getInstance("MD5")
+    val b = s.getBytes("UTF-8")
+    m.update(b, 0, b.length)
+    new java.math.BigInteger(1, m.digest()).toString(16)
+  }
 }

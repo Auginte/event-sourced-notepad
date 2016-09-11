@@ -1,13 +1,14 @@
 <html>
 <head>
     <title>Auginte: {{project}}</title>
+    <script type="text/javascript" src="/js/common.js"></script>
 </head>
 <body>
 <h1>{{project}}: {{uuid}}</h1>
 <h2>Add element</h2>
 <form id="addElementForm">
     Name: <input id="elementName">
-    <button type="submit" id="addElement">Create project</button>
+    <button type="submit" id="addElement">Add element</button>
 </form>
 
 <div id="data"></div>
@@ -27,7 +28,7 @@
             };
 
             var http = new XMLHttpRequest();
-            var url = "/project/{{project}}/{{uuid}}";
+            var url = "/project/{{project|urlencoded}}/{{uuid}}";
             var params = JSON.stringify(healthChecked) + "\n" + JSON.stringify(elementAdded) + "\n";
             http.open("POST", url, true);
             http.setRequestHeader("Content-type", "application/json");
@@ -53,7 +54,7 @@
     </script>
 
     <script type="text/javascript">
-        var source = new EventSource('/project/{{project}}/{{uuid}}');
+        var source = new EventSource('/project/{{project|urlencoded}}/{{uuid}}');
         var dataElement = document.getElementById("data")
 
         function prepend(parent, child) {
@@ -68,7 +69,7 @@
 
         function appendData(data) {
             var div = document.createElement("div");
-            div.innerHTML = data;
+            div.innerHTML = htmlEncode(data);
             prepend(dataElement, div);
         }
 
