@@ -1,86 +1,166 @@
 package com.auginte.eventsourced
 
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import akka.stream.scaladsl.Source
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
 
-class RealTimeMessages {
+import scala.collection.immutable.Queue
 
-}
+/**
+  * Similar to [[akka.stream.actor.ActorPublisher]],
+  * but have multiple subscribers and should be used for infinite streams.
+  *
+  * So it could fit for `text/event-stream` protocol, that includes reconnecting (or browser refresh)
+  */
+class RealTimeMessages extends Actor with ActorLogging {
 
-object RealTimeMessages {
-  private val canceled = -1
+  import RealTimeMessages._
 
-  private var storage:List[String] = List()
+  private var subscribers = Map[SubscriberData, ActorRef]()
+  private var buffer: Queue[Data] = Queue()
 
-  private type DataSubscriber = Subscriber[_ >: String]
-
-  private var subscribers = Map[DataSubscriber, Long]()
-
-  def publishData(data: String): Unit = {
-    println("# Queuing new data")
-    storage ::= data
-    sendStored()
+  override def receive: Receive = {
+    case Subscribe(subscriber) =>
+      subscribe(subscriber)
+    case Cancel(subscriber) =>
+      cancel(subscriber)
+    case Request(subscriber, n) =>
+      request(subscriber, n)
+    case Publish(data) =>
+      publish(data)
+    case other =>
+      log.debug("Unknown message", other)
   }
 
-  private def takeFromStorage(demand: Long): Iterable[String] = this.synchronized {
-    val(consumeNow, consumeLater) = storage.splitAt(demand.toInt)
-    storage = consumeLater
+  private def subscribe(subscriber: SubscriberData): Unit = {
+    val innerPublisher = context.actorOf(Props[InnerPublisher])
+    subscribers = subscribers.updated(subscriber, innerPublisher)
+  }
+
+  private def cancel(subscriber: SubscriberData): Unit = {
+    subscribers.get(subscriber) match {
+      case Some(actor) =>
+        actor ! PoisonPill
+      case None => log.warning("Trying to stop not existing subscriber", subscriber, self, sender())
+    }
+    subscribers -= subscriber
+  }
+
+  private def publish(data: Data): Unit = {
+    if (subscribers.isEmpty) {
+      buffer = buffer.enqueue(data)
+    } else {
+      if (buffer.isEmpty) {
+        subscribers.values.foreach { actor =>
+          actor ! Publish(data)
+        }
+      } else {
+        val allData = buffer.enqueue(data)
+        buffer = Queue()
+        subscribers.values.foreach { actor =>
+          actor ! PublishMultiple(allData)
+        }
+      }
+    }
+  }
+
+  private def request(subscriber: SubscriberData, n: Long): Unit = {
+    subscribers.get(subscriber) match {
+      case Some(actor) => actor ! Request(subscriber, n)
+      case None => log.warning("No inner publisher to respond to requested data", subscriber, n)
+    }
+  }
+}
+
+class InnerPublisher extends Actor with ActorLogging {
+
+  import RealTimeMessages._
+
+  private var subscriberOption: Option[SubscriberData] = None
+  private var queue: Queue[Data] = Queue()
+  private var demand: Long = 0
+
+  override def receive: Receive = {
+    case Request(subscriber, n) =>
+      request(subscriber, n)
+      publishData()
+    case Publish(data) =>
+      store(data)
+      publishData()
+    case PublishMultiple(multiple) =>
+      for (data <- multiple) {
+        store(data)
+      }
+      publishData()
+    case other =>
+      log.warning("Received unknown message", other)
+  }
+
+  private def request(subscriber: SubscriberData, n: Long): Unit = {
+    subscriberOption = Some(subscriber)
+    demand += n
+  }
+
+  private def store(data: Data): Unit = {
+    queue = queue.enqueue(data)
+  }
+
+  private def publishData(): Unit = {
+    for {
+      subscriber <- subscriberOption
+      data: Data <- takeFromStorage()
+    } {
+      subscriber.onNext(data)
+    }
+  }
+
+  private def takeFromStorage(): Iterable[Data] = this.synchronized {
+    val (consumeNow, consumeLater) = queue.splitAt(demand.toInt)
+    queue = consumeLater
+    demand -= consumeNow.size
     consumeNow
   }
 
-  private def sendStored() = subscribers.foreach{ case (subscriber: DataSubscriber, demand: Long) =>
-    val data = takeFromStorage(demand)
-    println(s"# Sending data: ${data.size} -> $subscriber")
-    data.foreach (subscriber.onNext)
-    addValue(subscriber, -data.size)
-  }
-
-  private def replaceValue(subscriber: DataSubscriber, newValue: Long): Unit = {
-    subscribers.updated(subscriber, newValue)
-  }
-
-  private def addValue(subscriber: DataSubscriber, diffValue: Long): Long = {
-    subscribers.get(subscriber) match {
-      case Some(oldValue) =>
-        if (oldValue != canceled) {
-          subscribers = subscribers.updated(subscriber, oldValue + diffValue)
-          oldValue + diffValue
-        } else {
-          canceled
-        }
-      case None =>
-        subscribers = subscribers.updated(subscriber, diffValue)
-        diffValue
+  @scala.throws[Exception](classOf[Exception])
+  override def postStop(): Unit = {
+    super.postStop()
+    for (
+      subscriber <- subscriberOption
+    ) {
+      subscriber.onComplete()
     }
   }
+}
 
+object RealTimeMessages {
+  type Data = String
+  type SubscriberData = Subscriber[_ >: Data]
 
-  def debugPublisher = new Publisher[String] {
+  private case class Subscribe(s: SubscriberData)
 
+  case class Publish(data: Data)
 
-    private def notifyPublishing(requested: Long): Unit =
-    {
-      println("Publishing")
+  private[eventsourced] case class PublishMultiple(data: Seq[Data])
 
-    }
+  private case class Cancel(s: SubscriberData)
 
-    override def subscribe(s: Subscriber[_ >: String]): Unit = {
-      subscribers = subscribers.updated(s, 0)
+  private[eventsourced] case class Request(s: SubscriberData, n: Long)
+
+  private def wrapActor(actor: ActorRef) = new Publisher[Data] {
+    override def subscribe(s: Subscriber[_ >: Data]): Unit = {
+      actor ! Subscribe(s)
       s.onSubscribe(new Subscription() {
         override def cancel(): Unit = {
-          println("# Cancel")
-          replaceValue(s, canceled)
+          actor ! Cancel
         }
 
         override def request(n: Long): Unit = {
-          println(s"# Requested: $n")
-          addValue(s, n)
-          sendStored()
+          actor ! Request(s, n)
         }
       })
     }
 
   }
 
-  def source() = Source.fromPublisher(debugPublisher)
+  def source(actor: ActorRef) = Source.fromPublisher[Data](wrapActor(actor))
 }

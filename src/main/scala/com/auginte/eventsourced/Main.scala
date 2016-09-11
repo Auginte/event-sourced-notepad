@@ -8,9 +8,9 @@ import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.stream._
-import akka.stream.actor.ActorPublisher
 import akka.stream.scaladsl.{Source, _}
 import akka.util.{ByteString, Timeout}
+import com.auginte.eventsourced.RealTimeMessages.Publish
 
 import scala.concurrent.duration._
 
@@ -40,13 +40,15 @@ object Main {
     implicit val timeout = Timeout(5.seconds)
     implicit val executionContext = system.dispatcher
 
+    val realTimeMessagesActor = system.actorOf(Props[RealTimeMessages])
+    val realTimeMesagesPublisher = RealTimeMessages.source(realTimeMessagesActor)
     val sendingMessages = thread{
       println("Starting")
       Thread.sleep(500)
-      for (i <- 1 to 100) {
+      for (i <- 1 to 500) {
         println("Bla " + i)
         val json = s"""{"data":$i}"""
-        RealTimeMessages.publishData(json)
+        realTimeMessagesActor ! Publish(json)
         Thread.sleep(500)
       }
       println("Finished")
@@ -104,11 +106,11 @@ object Main {
           StatusCodes.OK,
           headers = List(noCache, allowOriginAll),
 
-          entity = HttpEntity.CloseDelimited(// <--- Response
+          entity = HttpEntity.CloseDelimited(
             customContentType,
-            RealTimeMessages.source()
+            realTimeMesagesPublisher
               .map(toEventSourcedFormat)
-              .map(ByteString.fromString) // <--- Stream
+              .map(ByteString.fromString)
               .via(slowUpdate)
           )
 
