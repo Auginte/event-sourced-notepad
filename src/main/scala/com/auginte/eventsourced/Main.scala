@@ -1,18 +1,20 @@
 package com.auginte.eventsourced
 
 import akka.NotUsed
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorSystem
 import akka.http.javadsl.{model => jm}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.Uri.{Path => P}
 import akka.http.scaladsl.model.headers._
-import akka.stream._
+import akka.http.scaladsl.model.{HttpEntity, _}
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.{PathMatcher, _}
 import akka.stream.scaladsl.{Source, _}
+import akka.stream.{ActorMaterializer, _}
 import akka.util.{ByteString, Timeout}
-import com.auginte.eventsourced.RealTimeMessages.Publish
 
 import scala.concurrent.duration._
+import scala.language.implicitConversions
 
 object Main {
 
@@ -20,13 +22,23 @@ object Main {
     override def run(): Unit = execution
   })
 
-  def newUuid: String = java.util.UUID.randomUUID.toString
+  def html(data: String) = HttpResponse(StatusCodes.OK, List(), HttpEntity(ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`), data))
 
-    // Storage example
-  val storagePath = env("auginte.storage.path", "./data")
-  val storage = new Storage(storagePath)
+  val ProjectName = Segment
+
+  val StringUUID: PathMatcher1[UUID] =
+    PathMatcher("""[\da-fA-F]{8}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{12}""".r) flatMap { string ⇒
+      try Some(string)
+      catch {
+        case _: IllegalArgumentException ⇒ None
+      }
+    }
 
   def env(param: String, default: String = ""): String = sys.props.getOrElse(param, default)
+
+  // Storage example
+  val storagePath = env("auginte.storage.path", "./data")
+  val storage = new Storage(storagePath)
 
   def main(args: Array[String]) {
 
@@ -39,140 +51,117 @@ object Main {
     implicit val materializer = ActorMaterializer()
     implicit val timeout = Timeout(5.seconds)
     implicit val executionContext = system.dispatcher
+    val sessionFactory = SessionFactory(storage, system)
 
-    val realTimeMessagesActor = system.actorOf(Props[RealTimeMessages])
-    val realTimeMesagesPublisher = RealTimeMessages.source(realTimeMessagesActor)
-    val sendingMessages = thread{
-      println("Starting")
-      Thread.sleep(500)
-      for (i <- 1 to 500) {
-        println("Bla " + i)
-        val json = s"""{"data":$i}"""
-        realTimeMessagesActor ! Publish(json)
-        Thread.sleep(500)
-      }
-      println("Finished")
-    }
-    sendingMessages.start()
 
-    def date = new java.util.Date().toString
+    val eventSourcedContentType = ContentType.parse("text/event-stream;charset=UTF-8").right.get
+    val noCache = `Cache-Control`(CacheDirectives.`no-cache`)
 
-    val linearFlow = Source.fromIterator[String](() => new Iterator[String] {
-      private var i: Int = 1
+    def showIndex = html(Html.index)
 
-      override def hasNext: Boolean = i < 50
-
-      override def next(): String = {
-        println("INITIAL STARTED : " + i + " | " + date)
-
-        Thread.sleep(20)
-
-        println("INITIAL FINISHED: " + i + " | " + date)
-        i = i + 1
-
-        s"""
-           |id: $i
-           |data: {"some":"data:$i"}
-      """.stripMargin + "\n\n"
-      }
-    })
-
-    val slowUpdate = Flow.fromFunction { b: ByteString =>
-      //Doing some stuff
-      println("Updating: Started")
-      Thread.sleep(1)
-      println("Updating: FINISHED")
-      b
+    def showProject(project: Project) = {
+      val session = sessionFactory.newSession(project)
+      html(Html.project(project, session.uuid))
     }
 
-    val customContentType =
-      ContentType.parse("text/event-stream;charset=UTF-8").right.get
-    val noCache =
-      `Cache-Control`(CacheDirectives.`no-cache`)
-    val allowOriginAll =
-      `Access-Control-Allow-Origin`.*
+    case class SessionValidated(project: Project, uuid: UUID) {
+      val session: SessionStream = sessionFactory.get(project, uuid) match {
+        case Some(s) => s
+        case None => throw new IllegalArgumentException("No session was found by project and uuid. Go to project first")
+      }
+    }
 
-    val flow: Flow[HttpRequest, HttpResponse, Any] = Flow[HttpRequest].map {
-      case r@HttpRequest(GET, Uri.Path("/stream"), _, _, _) =>
+    def storeAndExecute(rawData: Source[ByteString, _], session: SessionStream): HttpResponse = {
+      def informOtherClients() = Flow.fromFunction[String, Boolean] { data =>
+        sessionFactory.publish(data, session.project)
+      }
 
-        def toEventSourcedFormat(data: String): String = {
-          s"""
-             |id: $newUuid
-             |data: $data
-      """.stripMargin + "\n\n"
+      def logStorageErrors = Flow.fromFunction[(String, Boolean), String] { inputPair =>
+        val (data, stored) = inputPair
+        if (!stored) {
+          println(s"Failed to store ${session.project}/${session.uuid}: $data")
+        }
+        data
+      }
+
+      def storeToDatabase: Flow[String, (String, Boolean), NotUsed] = Flow.fromFunction { data =>
+        val success = storage.append(session.project, data)
+        (data, success)
+      }
+
+      def processCommands = GraphDSL.create() { implicit b =>
+        import GraphDSL.Implicits._
+
+        val input = b.add(Broadcast[String](3).async)
+        val output = b.add(Flow[(String)])
+
+        input ~> logEvent ~> Sink.ignore
+        input ~> storeToDatabase ~> logStorageErrors ~> informOtherClients ~> Sink.ignore
+        input ~> output
+
+        FlowShape(input.in, output.outlet)
+      }
+
+      val array = rawData
+        .via(Framing.delimiter(ByteString("\n"), Int.MaxValue))
+        .map(_.utf8String)
+        .via(processCommands)
+        .runReduce((a, b) => a + "," + b).map(i => "[" + i + "]").map(ByteString.apply)
+
+      HttpResponse(
+        StatusCodes.OK,
+        List(),
+        HttpEntity(ContentType(MediaTypes.`application/json`), Source.fromFuture(array))
+      )
+    }
+
+    def toEventSourcedFormat(data: String): String = {
+      def newUuid: String = java.util.UUID.randomUUID.toString
+
+      s"""
+         |id: $newUuid
+         |data: $data
+              """.stripMargin + "\n\n"
+    }
+
+    def streamSessionEvents(sessionStream: SessionStream) = {
+      HttpResponse(
+        StatusCodes.OK,
+        headers = List(noCache),
+        entity = HttpEntity.CloseDelimited(
+          eventSourcedContentType,
+          Source.fromGraph(sessionStream.stream)
+            .map(toEventSourcedFormat)
+            .map(ByteString.fromString)
+        )
+      )
+    }
+
+    val routes =
+      pathSingleSlash {
+        get {
+          complete(showIndex)
+        }
+      } ~
+        (path("project" / ProjectName) & get) { project =>
+          complete(showProject(project))
+        } ~
+        path("project" / ProjectName / StringUUID).as(SessionValidated) { sessionData =>
+          post { context =>
+            context.complete {
+              storeAndExecute(context.request.entity.dataBytes, sessionData.session)
+            }
+          } ~
+            get {
+              complete {
+                streamSessionEvents(sessionData.session)
+              }
+            }
         }
 
-        HttpResponse(
-          StatusCodes.OK,
-          headers = List(noCache, allowOriginAll),
-
-          entity = HttpEntity.CloseDelimited(
-            customContentType,
-            realTimeMesagesPublisher
-              .map(toEventSourcedFormat)
-              .map(ByteString.fromString)
-              .via(slowUpdate)
-          )
-
-        )
-
-      case r@HttpRequest(GET, uri, _, _, _) if uri.path.startsWith(Uri.Path("/project/")) =>
-        val project = uri.path.reverse.head.toString
-
-        HttpResponse(
-          StatusCodes.OK,
-          List(),
-          HttpEntity(ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`), Html.page(project))
-        )
-
-      case r@HttpRequest(POST, uri, _, entity, _) if uri.path.startsWith(Uri.Path("/project/")) =>
-        val project = uri.path.reverse.head.toString
-
-        val array = entity.dataBytes
-          .via(Framing.delimiter(ByteString("\n"), Int.MaxValue))
-          .map(_.utf8String)
-          .via(processCommands(project))
-          .runReduce((a, b) => a + "," + b).map(i => "[" + i + "]").map(ByteString.apply)
-
-        HttpResponse(
-          StatusCodes.OK,
-          List(),
-          HttpEntity(ContentType(MediaTypes.`application/json`), Source.fromFuture(array))
-        )
-
-      case r@HttpRequest(GET, Uri.Path("/"), _, _, _) =>
-        println(r)
-
-        HttpResponse(
-          StatusCodes.OK,
-          List(),
-          HttpEntity(ContentType(MediaTypes.`text/html`, HttpCharsets.`UTF-8`), Html.consumer)
-        )
-      case r: HttpRequest =>
-        println("Other request: " + r)
-        HttpResponse(StatusCodes.NotFound)
-    }
-
-    val bindingFuture = Http().bindAndHandle(flow, host, port)
-  }
-
-  def processCommands(project: String) = GraphDSL.create() { implicit b =>
-    import GraphDSL.Implicits._
-
-    val input = b.add(Broadcast[String](3))
-    val output = b.add(Flow[(String)].buffer(5, OverflowStrategy.backpressure))
-
-    input ~> logEvent ~> Sink.ignore
-    input ~> storeToDatabase(project) ~> Sink.ignore
-    input ~> output
-
-    FlowShape(input.in, output.outlet)
+    val bindingFuture = Http().bindAndHandle(routes, host, port)
   }
 
   def logEvent: Flow[String, Unit, NotUsed] = Flow.fromFunction(data => println(s"Log: $data"))
-
-  def storeToDatabase(project: String): Flow[String, Boolean, NotUsed] = Flow.fromFunction{ data =>
-    storage.append(project, data)
-  }
 }
 

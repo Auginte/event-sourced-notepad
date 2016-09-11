@@ -133,7 +133,6 @@ class InnerPublisher extends Actor with ActorLogging {
 }
 
 object RealTimeMessages {
-  type Data = String
   type SubscriberData = Subscriber[_ >: Data]
 
   private case class Subscribe(s: SubscriberData)

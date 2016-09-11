@@ -3,21 +3,21 @@
     <title>Auginte: {{project}}</title>
 </head>
 <body>
-    <h1>{{project}}: {{uuid}}</h1>
-    <h2>Add element</h2>
-    <form id="addElementForm">
-        Name: <input id="elementName">
-        <button type="submit" id="addElement">Create project</button>
-    </form>
+<h1>{{project}}: {{uuid}}</h1>
+<h2>Add element</h2>
+<form id="addElementForm">
+    Name: <input id="elementName">
+    <button type="submit" id="addElement">Create project</button>
+</form>
 
-    <div id="data">Loading greatness...</div>
+<div id="data"></div>
 
-    <script type="text/javascript">
+<script type="text/javascript">
         function addElement() {
             var elementNameInput = document.getElementById("elementName");
             var name = elementNameInput.value;
 
-            var healhChecked = {
+            var healthChecked = {
                 event: "HealthChecked",
             };
             var elementAdded = {
@@ -27,8 +27,8 @@
             };
 
             var http = new XMLHttpRequest();
-            var url = "/project/{{project}}";
-            var params = JSON.stringify(healhChecked) + "\n" + JSON.stringify(elementAdded) + "\n";
+            var url = "/project/{{project}}/{{uuid}}";
+            var params = JSON.stringify(healthChecked) + "\n" + JSON.stringify(elementAdded) + "\n";
             http.open("POST", url, true);
             http.setRequestHeader("Content-type", "application/json");
 
@@ -53,13 +53,23 @@
     </script>
 
     <script type="text/javascript">
-        var source = new EventSource('/stream');
+        var source = new EventSource('/project/{{project}}/{{uuid}}');
         var dataElement = document.getElementById("data")
+
+        function prepend(parent, child) {
+            var first = parent.firstChild;
+            console.log(first, parent, child);
+            if (!first) {
+                parent.appendChild(child);
+            } else {
+                parent.insertBefore(child, first);
+            }
+        }
 
         function appendData(data) {
             var div = document.createElement("div");
-            div.innerHTML = data
-            dataElement.appendChild(div)
+            div.innerHTML = data;
+            prepend(dataElement, div);
         }
 
         source.addEventListener('message', function(e) {

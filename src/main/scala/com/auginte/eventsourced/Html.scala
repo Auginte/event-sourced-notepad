@@ -3,9 +3,15 @@ package com.auginte.eventsourced
 import scala.io.Source
 
 object Html {
-  val consumer = resource("index.html")
+  val index = resource("index.html")
 
-  def page(project: String) = resource("project.html", Map("{{project}}" -> project))
+  def project(project: Project, uuid: UUID) = resource(
+    "project.html",
+    Map(
+      "{{project}}" -> project,
+      "{{uuid}}" -> uuid
+    )
+  )
 
   private def resource(file: String, parameters: Map[String, String] = Map()): String = {
     val resource = Html.getClass.getResourceAsStream(file)
