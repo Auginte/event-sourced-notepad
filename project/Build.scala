@@ -4,7 +4,7 @@ import xerial.sbt.Pack.{pack => sbtPack, _}
 
 object Build extends sbt.Build {
   val buildName = "auginte-event-sourced"
-  val buildVersion = "0.0.3"
+  val buildVersion = "0.0.4"
   val buildScalaVersion = "2.11.8"
   val buildOptions = Seq("-feature", "-unchecked", "-deprecation", "-encoding", "utf8")
 

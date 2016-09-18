@@ -10,9 +10,8 @@ import akka.stream.scaladsl.{GraphDSL, Merge, Source}
 case class SessionStream(storage: Storage, project: Project, realTimeMessages: ActorRef, uuid: UUID = SessionStream.newUuid) {
   lazy val stream = GraphDSL.create() { implicit b =>
     import GraphDSL.Implicits._
-    val merge = b.add(Merge[String](3)) // Blocking operation
+    val merge = b.add(Merge[String](2)) // Blocking operation
 
-    Source.single("""{"reopened":"stream"}""") ~> merge
     storage.readAll(project) ~> merge
     RealTimeMessages.source(realTimeMessages) ~> merge
 

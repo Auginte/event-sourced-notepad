@@ -1,5 +1,7 @@
 package com.auginte.eventsourced
 
+import java.nio.charset.StandardCharsets._
+
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.javadsl.{model => jm}
@@ -134,6 +136,7 @@ object Main {
           Source.fromGraph(sessionStream.stream)
             .map(toEventSourcedFormat)
             .map(ByteString.fromString)
+            .keepAlive(1.second, () => ByteString("\n", UTF_8.name))
         )
       )
     }
