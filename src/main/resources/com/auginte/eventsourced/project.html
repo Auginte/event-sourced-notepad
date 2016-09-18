@@ -2,6 +2,7 @@
 <head>
     <title>Auginte: {{project}}</title>
     <script type="text/javascript" src="/js/common.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0, target-densitydpi=device-dpi"/>
 </head>
 <body>
 <h1>{{project}}: {{uuid}}</h1>
@@ -34,9 +35,9 @@
             http.setRequestHeader("Content-type", "application/json");
 
             http.onreadystatechange = function() {
-                console.log("http.readyState", http.readyState);
-                console.log("http.status", http.status);
-                console.log("http.responseText", http.responseText);
+                // console.log("http.readyState", http.readyState);
+                // console.log("http.status", http.status);
+                // console.log("http.responseText", http.responseText);
             };
             http.send(params);
 
@@ -59,7 +60,6 @@
 
         function prepend(parent, child) {
             var first = parent.firstChild;
-            console.log(first, parent, child);
             if (!first) {
                 parent.appendChild(child);
             } else {
@@ -76,7 +76,6 @@
         source.addEventListener('message', function(e) {
           appendData(e.data);
           var parsed = JSON.parse(e.data);
-          console.log(parsed, e);
         }, false);
 
         source.addEventListener('open', function(e) {
