@@ -3,9 +3,9 @@ package com.auginte.eventsourced
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import akka.stream.scaladsl.Source
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
-import scala.language.existentials
 
 import scala.collection.immutable.Queue
+import scala.language.existentials
 
 /**
   * Similar to [[akka.stream.actor.ActorPublisher]],

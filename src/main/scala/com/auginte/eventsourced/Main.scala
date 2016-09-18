@@ -55,7 +55,6 @@ object Main {
     implicit val executionContext = system.dispatcher
     val sessionFactory = SessionFactory(storage, system)
 
-
     val eventSourcedContentType = ContentType.parse("text/event-stream;charset=UTF-8").right.get
     val noCache = `Cache-Control`(CacheDirectives.`no-cache`)
 
@@ -95,7 +94,7 @@ object Main {
       def processCommands = GraphDSL.create() { implicit b =>
         import GraphDSL.Implicits._
 
-        val input = b.add(Broadcast[String](2).async)
+        val input = b.add(Broadcast[String](2)) // Is blocking operation
         val output = b.add(Flow[(String)])
 
         input ~> storeToDatabase ~> logStorageErrors ~> informOtherClients ~> Sink.ignore
@@ -161,7 +160,7 @@ object Main {
             }
         } ~
         path("js" / "common.js") {
-          complete{
+          complete {
             js(Html.commonJs)
           }
         }
