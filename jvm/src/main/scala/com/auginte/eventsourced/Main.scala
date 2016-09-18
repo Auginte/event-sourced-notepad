@@ -42,6 +42,11 @@ object Main {
 
   // Storage example
   val storagePath = env("auginte.storage.path", "./data")
+  val compiledJsPath = env("auginte.compiledJs.path", "../js/target/scala-2.11")
+  val compiledJsDepsName = env("auginte.compiledDepsJs.name", "auginte-event-sourced-jsdeps.js")
+  val compiledJsLauncherName = env("auginte.compiledLauncherJs.name", "auginte-event-sourced-launcher.js")
+  val compiledJsName = env("auginte.compiledJs.name", "auginte-event-sourced-fastopt.js")
+  val compiledCssPath = env("auginte.compiledCss.path", "../jvm/target/web/less/main")
   val storage = new Storage(storagePath)
 
   def main(args: Array[String]) {
@@ -64,7 +69,7 @@ object Main {
 
     def showProject(project: Project) = {
       val session = sessionFactory.newSession(project)
-      html(Html.project(project, session.uuid))
+      html(Html.project(project, session.uuid, compiledJsName, compiledJsLauncherName, compiledJsDepsName))
     }
 
     case class SessionValidated(project: Project, uuid: UUID) {
@@ -97,7 +102,7 @@ object Main {
         import GraphDSL.Implicits._
 
         val input = b.add(Broadcast[String](2)) // Is blocking operation
-        val output = b.add(Flow[(String)])
+      val output = b.add(Flow[(String)])
 
         input ~> storeToDatabase ~> logStorageErrors ~> informOtherClients ~> Sink.ignore
         input ~> output
@@ -166,6 +171,12 @@ object Main {
           complete {
             js(Html.commonJs)
           }
+        } ~
+        path("js" / "auginte" / Segment) { fileName =>
+          getFromFile(compiledJsPath + "/" + fileName)
+        } ~
+        path("css" / "auginte" / Segment) { fileName =>
+          getFromFile(compiledCssPath + "/" + fileName)
         }
 
     val bindingFuture = Http().bindAndHandle(routes, host, port)

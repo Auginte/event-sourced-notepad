@@ -13,21 +13,27 @@ Run during development
 ----------------------
 
 ```
-sbt "~re-start"
+sbt "~auginteEventSourcedJS/fastOptJS"
+sbt "~auginteEventSourcedJVM/re-start"
 ```
 
 Deploy
 ------
 
 ```
-sbt pack
+sbt "auginteEventSourcedJS/fullOptJS"
+sbt "auginteEventSourcedJVM/pack"
 ```
 
 ```
 java -cp "$SOFTWARE_PATH/pack/lib/*" \
- -Dauginte.host=0.0.0.0 \
- -Dauginte.port=8111 \
- com.auginte.eventsourced.Main
+  -Dauginte.host=0.0.0.0 \
+  -Dauginte.port=8111 \
+  -Dauginte.storage.path=data \
+  -Dauginte.compiledJs.path=js \
+  -Dauginte.compiledJs.name=auginte-event-sourced-opt.js \
+  -Dauginte.compiledCss.path=css \
+  com.auginte.eventsourced.Main
 ```
 
 Architectural decisions
