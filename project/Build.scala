@@ -28,8 +28,9 @@ object Build extends sbt.Build {
       organization := "com.auginte",
       scalaVersion := buildScalaVersion,
       scalacOptions := buildOptions,
+      unmanagedResourceDirectories in Compile += baseDirectory.value.getParentFile / "shared" / "src" / "main" / "resources",
       includeFilter in(Assets, LessKeys.less) := "*.less",
-      LessKeys.compress in Assets  := true,
+      LessKeys.compress in Assets := true,
       LessKeys.verbose := true
     ).
     enablePlugins(SbtWeb).
@@ -45,9 +46,10 @@ object Build extends sbt.Build {
     ).
     jsSettings(
       libraryDependencies ++= Seq(
-        "org.scala-js" %%% "scalajs-dom" % "0.8.2"
+        "org.scala-js" %%% "scalajs-dom" % "0.9.1",
+        "com.lihaoyi" %%% "scalatags" % "0.6.0",
+        "me.chrons" %%% "diode" % "1.0.0"
       ),
-      mainClass in Compile := Some("com.auginte.eventsourced.MainJs"),
       persistLauncher := true
     )
 

@@ -1,0 +1,100 @@
+<html>
+<head>
+    <title>Auginte: {{project}}</title>
+    <link rel="stylesheet" type="text/css" href="/css/auginte/main.min.css">
+    <script type="text/javascript" src="/js/common.js"></script>
+    <script type="text/javascript" src="/js/auginte/{{compiledJsName}}"></script>
+    <script type="text/javascript" src="/js/auginte/{{compiledJsDepsName}}"></script>
+    <script type="text/javascript" src="/js/auginte/{{compiledJsName}}"></script>
+    <script type="text/javascript" src="/js/auginte/{{compiledJsLauncherName}}"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0, target-densitydpi=device-dpi"/>
+</head>
+<body>
+<div id="root">Loading...</div>
+<h1>{{project}}: {{uuid}}</h1>
+<h2>Add element</h2>
+<form id="addElementForm">
+    Name: <input id="elementName">
+    <button type="submit" id="addElement">Add element</button>
+</form>
+
+<div id="data"></div>
+
+<script type="text/javascript">
+        function addElement() {
+            var elementNameInput = document.getElementById("elementName");
+            var name = elementNameInput.value;
+
+            var healthChecked = {
+                event: "HealthChecked",
+            };
+            var elementAdded = {
+                event: "ElementAdded",
+                type: "Text",
+                data: name,
+            };
+
+            var http = new XMLHttpRequest();
+            var url = "/project/{{project|urlencoded}}/{{uuid}}";
+            var params = JSON.stringify(healthChecked) + "\n" + JSON.stringify(elementAdded) + "\n";
+            http.open("POST", url, true);
+            http.setRequestHeader("Content-type", "application/json");
+
+            http.onreadystatechange = function() {
+                // console.log("http.readyState", http.readyState);
+                // console.log("http.status", http.status);
+                // console.log("http.responseText", http.responseText);
+            };
+            http.send(params);
+
+            elementNameInput.value = "";
+            elementNameInput.focus();
+            return false;
+        };
+
+        document.getElementById("addElementForm").onsubmit = function(event) {
+            event.preventDefault();
+            return addElement();
+        };
+
+        document.getElementById("addElement").onclick = addElement;
+    </script>
+
+    <script type="text/javascript">
+        var source = new EventSource('/project/{{project|urlencoded}}/{{uuid}}');
+        var dataElement = document.getElementById("data")
+
+        function prepend(parent, child) {
+            var first = parent.firstChild;
+            if (!first) {
+                parent.appendChild(child);
+            } else {
+                parent.insertBefore(child, first);
+            }
+        }
+
+        function appendData(data) {
+            var div = document.createElement("div");
+            div.innerHTML = htmlEncode(data);
+            prepend(dataElement, div);
+        }
+
+        source.addEventListener('message', function(e) {
+          appendData(e.data);
+          var parsed = JSON.parse(e.data);
+        }, false);
+
+        source.addEventListener('open', function(e) {
+          console.log("OPEN", e)
+        }, false);
+
+        source.addEventListener('error', function(e) {
+          if (e.readyState == EventSource.CLOSED) {
+            console.log("CLOSED", e)
+          } else {
+            console.log("ERROR", e)
+          }
+        }, false);
+    </script>
+</body>
+</html>
