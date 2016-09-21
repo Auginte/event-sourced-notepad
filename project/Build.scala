@@ -27,27 +27,27 @@ object Build extends sbt.Build {
       version := buildVersion,
       organization := "com.auginte",
       scalaVersion := buildScalaVersion,
-      scalacOptions := buildOptions,
-      unmanagedResourceDirectories in Compile += baseDirectory.value.getParentFile / "shared" / "src" / "main" / "resources",
-      includeFilter in(Assets, LessKeys.less) := "*.less",
-      LessKeys.compress in Assets := true,
-      LessKeys.verbose := true
+      scalacOptions := buildOptions
     ).
     enablePlugins(SbtWeb).
-    settings(spray.revolver.RevolverPlugin.Revolver.settings: _*).
-    settings(packAutoSettings: _*).
     jvmSettings(
       libraryDependencies ++= Seq(
         "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
         "com.typesafe.akka" %% "akka-actor" % akkaVersion,
         "com.typesafe.akka" %% "akka-http-experimental" % akkaVersion
       ),
+      includeFilter in(Assets, LessKeys.less) := "*.less",
+      LessKeys.compress in Assets := true,
+      LessKeys.verbose := true,
       mainClass in Compile := Some("com.auginte.eventsourced.Main")
     ).
+    jvmSettings(spray.revolver.RevolverPlugin.Revolver.settings: _*).
+    jvmSettings(packAutoSettings: _*).
     jsSettings(
       libraryDependencies ++= Seq(
         "org.scala-js" %%% "scalajs-dom" % "0.9.1",
         "com.lihaoyi" %%% "scalatags" % "0.6.0",
+        "com.github.benhutchison" %%% "prickle" % "1.1.11",
         "me.chrons" %%% "diode" % "1.0.0"
       ),
       persistLauncher := true

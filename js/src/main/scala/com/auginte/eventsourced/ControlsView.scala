@@ -14,11 +14,9 @@ class ControlsView(dispatch: Dispatcher) {
 
   def value() = newElement.value
 
-  def focus() = newElement.focus()
-
   def render = {
     form(
-      onsubmit := { (e: Event) => dispatch(AddNewElement(value(), e)); focus(); false },
+      onsubmit := { (e: Event) => dispatch(AddNewElement(value(), e)); false },
       input(
         id := newElementId
       ),

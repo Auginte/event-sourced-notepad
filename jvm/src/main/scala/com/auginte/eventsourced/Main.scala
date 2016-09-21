@@ -1,5 +1,6 @@
 package com.auginte.eventsourced
 
+import java.io.File
 import java.nio.charset.StandardCharsets._
 
 import akka.NotUsed
@@ -42,11 +43,11 @@ object Main {
 
   // Storage example
   val storagePath = env("auginte.storage.path", "./data")
-  val compiledJsPath = env("auginte.compiledJs.path", "../js/target/scala-2.11")
+  val compiledJsPath = env("auginte.compiledJs.path", "js/target/scala-2.11")
   val compiledJsDepsName = env("auginte.compiledDepsJs.name", "auginte-event-sourced-jsdeps.js")
   val compiledJsLauncherName = env("auginte.compiledLauncherJs.name", "auginte-event-sourced-launcher.js")
   val compiledJsName = env("auginte.compiledJs.name", "auginte-event-sourced-fastopt.js")
-  val compiledCssPath = env("auginte.compiledCss.path", "../jvm/target/web/less/main")
+  val compiledCssPath = env("auginte.compiledCss.path", "jvm/target/web/less/main")
   val storage = new Storage(storagePath)
 
   def main(args: Array[String]) {

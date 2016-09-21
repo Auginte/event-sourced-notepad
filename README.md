@@ -14,7 +14,7 @@ Run during development
 
 ```
 sbt "~auginteEventSourcedJS/fastOptJS"
-sbt "~auginteEventSourcedJVM/re-start"
+sbt "auginteEventSourcedJVM/run"
 ```
 
 Deploy
@@ -59,4 +59,5 @@ Architectural decisions
 Known issues
 ------------
 
-`sbt.version=0.13.12` throws deprecation warnings
+* `sbt.version=0.13.12` throws deprecation warnings
+* `~re-start` does not work properly with crossProject (JS + JVM)
