@@ -47,7 +47,10 @@ object MainJs extends JSApp {
     root.innerHTML = ""
     val e = div(
       controls.render,
-      elements.render
+      div(
+        `class` := "elements",
+        elements.render
+      )
     )
     root.appendChild(e.render)
     focus()
