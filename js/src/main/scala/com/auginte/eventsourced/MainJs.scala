@@ -1,8 +1,10 @@
 package com.auginte.eventsourced
+import com.auginte.eventsourced.vdom.Input
 import org.scalajs.dom
 import org.scalajs.dom._
 import org.scalajs.dom.html.{Element => _, _}
 
+import scala.scalajs.js
 import scala.scalajs.js.JSApp
 import scalatags.JsDom.all._
 
@@ -44,15 +46,14 @@ object MainJs extends JSApp {
       element.focus()
     }
 
-    root.innerHTML = ""
-    val e = div(
-      controls.render,
-      div(
-        `class` := "elements",
-        elements.render
-      )
-    )
-    root.appendChild(e.render)
+    clearChilds(root)
+    root.appendChild(div(controls.render).render)
+    root.appendChild(elements.domElements.createDomElement(dom.document))
+
     focus()
+  }
+
+  private def clearChilds(root: Element): Unit ={
+    root.innerHTML = ""
   }
 }
