@@ -68,3 +68,13 @@ Known issues
 ------------
 
 * `sbt.version=0.13.12` throws deprecation warnings
+
+License
+-------
+
+[Apache 2.0](LICENSE)
+
+Author
+------
+
+Aurelijus Banelis https://auginte.com
