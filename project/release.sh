@@ -16,7 +16,7 @@ sbt "auginteEventSourcedJVM/pack"
 
 echo "Getting version..."
 VERSION=`cat project/Build.scala | grep "buildVersion" | awk '{print $4}' | sed 's/"//g'`
-NAME="$(date +'%y-%m-%dT%H-%M-%S')-v$VERSION"
+NAME="$(date +'%Y-%m-%dT%H-%M-%S')-v$VERSION"
 
 echo "Copying..."
 PATH="target/release/$NAME"
