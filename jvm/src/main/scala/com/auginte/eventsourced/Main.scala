@@ -41,13 +41,17 @@ object Main {
 
   def env(param: String, default: String = ""): String = sys.props.getOrElse(param, default)
 
-  // Storage example
-  val storagePath = env("auginte.storage.path", "./data")
-  val compiledJsPath = env("auginte.compiledJs.path", "js/target/scala-2.11")
+  val basePath = {
+    val current = new File("").getAbsolutePath
+    if (current.endsWith("/jvm")) current.stripSuffix("jvm") else current.stripSuffix("/") + "/"
+  }
+
+  val storagePath = env("auginte.storage.path", basePath + "data")
+  val compiledJsPath = env("auginte.compiledJs.path", basePath + "js/target/scala-2.11")
   val compiledJsDepsName = env("auginte.compiledDepsJs.name", "auginte-event-sourced-jsdeps.js")
   val compiledJsLauncherName = env("auginte.compiledLauncherJs.name", "auginte-event-sourced-launcher.js")
   val compiledJsName = env("auginte.compiledJs.name", "auginte-event-sourced-fastopt.js")
-  val compiledCssPath = env("auginte.compiledCss.path", "jvm/target/web/less/main")
+  val compiledCssPath = env("auginte.compiledCss.path", basePath + "jvm/target/web/less/main")
   val storage = new Storage(storagePath)
 
   def main(args: Array[String]) {
