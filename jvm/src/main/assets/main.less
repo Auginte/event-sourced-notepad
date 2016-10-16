@@ -2,3 +2,37 @@ body {
     background: #eff5f7;
     color: #325464;
 }
+
+.noSelectable {
+    webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none;   /* Chrome/Safari/Opera */
+    -khtml-user-select: none;    /* Konqueror */
+    -moz-user-select: none;      /* Firefox */
+    -ms-user-select: none;       /* Internet Explorer/Edge */
+    user-select: none;           /* Non-prefixed version, currently not supported by any browser */
+}
+
+.elements .element {
+    display: inline;
+    border: 1px solid green;
+    cursor: move;
+    cursor: grab;
+    .noSelectable
+}
+
+#debug {
+    #debugFps {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-order: -1000;
+        border: 1px solid red;
+    }
+    #debugUpdates {
+        position: fixed;
+        top: 20;
+        right: 0;
+        z-order: -2000;
+        border: 1px solid brown;
+    }
+}
