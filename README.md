@@ -56,6 +56,14 @@ Architectural decisions
     * Covers all cases and simplifies whole architecture
     * Integrates nicely with web-offline usage
 
+Development tips
+----------------
+
+To test via local network, Set server arguments in `sbt` interactive mode:
+```
+set javaOptions += "-Dauginte.host=192.168.0.123"
+```
+
 Known issues
 ------------
 
