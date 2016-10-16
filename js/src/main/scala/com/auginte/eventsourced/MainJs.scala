@@ -66,17 +66,29 @@ object MainJs extends JSApp {
     onReady {
       val updatesPerSecond = 60
       Async.timer(1000 / updatesPerSecond) {
+        def render(root: Element) = {
+          def clearChilds(root: Element): Unit = {
+            root.innerHTML = ""
+          }
+
+          clearChilds(root)
+          root.appendChild(div(controls.render).render)
+          root.appendChild(elements.domElements.createDomElement(dom.document))
+          DEBUG.repainted()
+        }
+
         DEBUG.frames += 1
         if (needUpdate) {
           needUpdate = false
+          val root = dom.document.getElementById("root")
+          render(root)
         }
         true
       }
       DEBUG.framesPerSecond()
 
       // Data model
-      val root = dom.document.getElementById("root")
-      ElementsApp.subscribe(ElementsApp.zoom(identity))(_ => render(root))
+      ElementsApp.subscribe(ElementsApp.zoom(identity))(_ => needUpdate = true)
       ElementsApp(Empty)
 
       // Updates from server
@@ -86,16 +98,5 @@ object MainJs extends JSApp {
       }
       source.addEventListener[MessageEvent]("message", messageHandler, useCapture = false)
     }
-  }
-
-  def render(root: Element) = {
-    def clearChilds(root: Element): Unit = {
-      root.innerHTML = ""
-    }
-
-    clearChilds(root)
-    root.appendChild(div(controls.render).render)
-    root.appendChild(elements.domElements.createDomElement(dom.document))
-    DEBUG.repainted()
   }
 }
